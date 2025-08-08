@@ -1,0 +1,30 @@
+[package]
+name = "serum_dex-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.3.5"
+arbitrary = "0.4.7"
+solana-program = "1.10.41"
+spl-token = {version = "3.5.0", features = ["no-entrypoint"] }
+bumpalo = { version = "3.11.1", features = ["collections", "boxed"] }
+safe-transmute = "0.11.2"
+rand = "0.7.3"
+itertools = "0.10.5"
+lazy_static = "1.4.0"
+
+[dependencies.serum_dex]
+path = ".."
+features = ["fuzz", "program"]
+
+[[bin]]
+name = "multiple_orders"
+path = "fuzz_targets/multiple_orders.rs"
+test = false
+doc = false

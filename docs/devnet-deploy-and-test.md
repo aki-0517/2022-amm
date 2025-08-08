@@ -111,13 +111,60 @@ solana logs -u devnet | grep -i raydium_amm
 
 ---
 
+### OpenBook マーケット作成（Devnet・要点）
+
+Raydium AMM の機能テストには、OpenBook マーケット（CLOB）の用意が前提です。以下は要点のみです。手順の背景説明・落とし穴・推奨パラメータは `docs/openbook.md` を参照してください。
+
+- 目的: Base/Quote の 2 種 SPL トークンを用意し、OpenBook 上に取引ペアのマーケットを作成する
+- Devnet の OpenBook Program ID: `EoTcMgcDRTJVZDMZWBoU6rhYHZfkNTVEAfz3uUJRcYGj`
+
+1) ツール準備（未導入なら実施）
+
+```
+cargo install spl-token-cli
+```
+
+2) SPL トークンを 2 種（Base/Quote）作成
+
+```
+# 例: Base は 9 桁、Quote は 6 桁
+spl-token create-token --decimals 9     # => <BASE_MINT>
+spl-token create-token --decimals 6     # => <QUOTE_MINT>
+```
+
+3) 各ミント用の ATA を作成
+
+```
+spl-token create-account <BASE_MINT>
+spl-token create-account <QUOTE_MINT>
+```
+
+4) 初期供給をミント（単位は最小単位＝ディシマル反映後の整数）
+
+```
+# 例: それぞれ 1,000,000 トークン相当をミント
+spl-token mint <BASE_MINT> 1000000000000   # 9 桁の最小単位で 1,000,000
+spl-token mint <QUOTE_MINT> 1000000000000  # 6 桁の最小単位で 1,000,000
+```
+
+5) OpenBook でマーケット作成（list-market）
+
+- 指定する主な引数: `--coin-mint <BASE_MINT> --pc-mint <QUOTE_MINT> --lot-size <LOT> --tick-size <TICK> --event-queue-length <N> --request-queue-length <N> --orderbook-length <N>`
+- 精度の注意: ロット/ティックの精度は基盤トークンのディシマルと整合させ、過剰な精度は避ける
+- コストの注意: キュー/オーダーブック長を短くすると作成コストは下がるが、スループットが低下
+- 実コマンド例や推奨値の一覧は `docs/openbook.md` の表・解説を参照
+
+得られた「Market ID」を控えてください（後続の Raydium プール初期化で使用）。
+
+---
+
 ### 機能テストの入口（プール初期化〜入金〜スワップ）
 Raydium AMM は OpenBook の既存マーケットに紐づけてプールを初期化します。最短ルートとして Rust の `raydium-library` を利用します。
 
 1) OpenBook マーケットを用意
-- Devnet 上で 2 種の SPL トークンを作成
-- `openbook-dex` を用いて `list-market`（ベース／クオート）
-- 参考: 本家 README のリンク（`ListMarket`）
+- Devnet 上で 2 種の SPL トークン（Base/Quote）を作成し、`openbook-dex` でマーケットを作成（`list-market`）
+- Devnet の OpenBook Program ID: `EoTcMgcDRTJVZDMZWBoU6rhYHZfkNTVEAfz3uUJRcYGj`
+- 手順とパラメータ選定の詳細は `docs/openbook.md` を参照（精度・コストの注意点を含む）
 
 2) Rust クライアント（`raydium-library`）依存例（devnet）
 
@@ -172,4 +219,5 @@ config.set_amm_program("<YOUR_PROGRAM_ID>");
 - 監査・開発ドキュメントは本家 README を参照
   - Audit: `https://github.com/raydium-io/raydium-docs/tree/master/audit`
   - Dev Resources: `https://github.com/raydium-io/raydium-docs/tree/master/dev-resources`
+  - OpenBook マーケット作成ガイド（本リポジトリ内）: `docs/openbook.md`
 
