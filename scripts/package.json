@@ -1,0 +1,21 @@
+{
+  "name": "raydium-amm-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "smoke": "node 1-smoke.js",
+    "create:tokens": "node 2-create-tokens.js",
+    "init:pool": "node 3-init-pool.js",
+    "deposit": "node 4-deposit.js",
+    "swap": "node 5-swap.js"
+  },
+  "dependencies": {
+    "@project-serum/serum": "^0.13.65",
+    "@solana/spl-token": "^0.4.7",
+    "@solana/web3.js": "^1.95.3",
+    "bn.js": "^5.2.1",
+    "dotenv": "^16.4.5"
+  }
+}
