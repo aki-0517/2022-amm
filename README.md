@@ -1,4 +1,4 @@
-# 2022 AMM (Automated Market Maker)
+# 2022 AMM 
 
 This project is based on the Raydium AMM protocol, featuring a complete Solana-based automated market maker implementation with Token-2022 support and OpenBook integration.
 
