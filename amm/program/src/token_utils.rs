@@ -191,8 +191,7 @@ pub fn get_account_len_for_token_2022(extension_types: &[ExtensionType]) -> usiz
 
 /// Check if two token programs are compatible for a swap operation
 pub fn are_programs_compatible(program_a: &Pubkey, program_b: &Pubkey) -> bool {
-    // For now, both tokens can be different programs
-    // In the future, we might add restrictions
-    program_a == &spl_token::id() || program_a == &spl_token_2022::id() &&
-    program_b == &spl_token::id() || program_b == &spl_token_2022::id()
+    // 両方が SPL Token または Token-2022 のいずれかである場合のみ互換とみなす
+    (program_a == &spl_token::id() || program_a == &spl_token_2022::id())
+        && (program_b == &spl_token::id() || program_b == &spl_token_2022::id())
 }
