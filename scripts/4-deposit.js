@@ -50,8 +50,8 @@ async function main() {
 
   const userCoin = asPk(getEnv('USER_COIN_ACCOUNT'));
   const userPc = asPk(getEnv('USER_PC_ACCOUNT'));
-  const coinTokenProgram = asPk(getEnv('COIN_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
-  const pcTokenProgram = asPk(getEnv('PC_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  // Use single token program for both coin and pc (Token-2022 allowed)
+  const tokenProgram = asPk(getEnv('COIN_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
   
   const userLp = getAssociatedTokenAddressSync(lpMint, payer.publicKey);
 
@@ -64,7 +64,7 @@ async function main() {
   const data = packDeposit({ maxCoin, maxPc, baseSide, otherAmountMin });
 
   const keys = [
-    meta(coinTokenProgram, false, false), // Coin token program
+    meta(tokenProgram, false, false), // Token program
     meta(ammPool, true, false),
     meta(authority, false, false),
     meta(openOrders, false, false),
@@ -78,7 +78,6 @@ async function main() {
     meta(userLp, true, false),
     meta(payer.publicKey, false, true),
     meta(marketEventQ, false, false),
-    meta(pcTokenProgram, false, false), // PC token program
   ];
 
   const instruction = ix(keys, programId, data);

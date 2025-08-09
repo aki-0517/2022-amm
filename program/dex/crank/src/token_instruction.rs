@@ -335,6 +335,9 @@ pub fn initialize_mint(
     amount: u64,
     decimals: u8,
 ) -> Result<Instruction, ProgramError> {
+    // Token-2022 は InitializeMint2 相当のデータだが、この crank の TokenInstruction は
+    // token_program_id に依存しない汎用表現を使っているため、ここでは従来のパッキングを再利用。
+    // 実際の処理は on-chain 側が program_id を見て解釈する。
     let data = TokenInstruction::InitializeMint { amount, decimals }.pack()?;
 
     let mut accounts = vec![AccountMeta::new(*mint_pubkey, false)];

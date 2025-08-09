@@ -607,8 +607,13 @@ impl Processor {
                 &[bump_seed],
             ];
             let rent = &Rent::from_account_info(rent_sysvar_account)?;
+            let account_len: u64 = if *spl_token_program_id == spl_token::id() {
+                spl_token::state::Account::LEN as u64
+            } else {
+                spl_token_2022::state::Account::LEN as u64
+            };
             let required_lamports = rent
-                .minimum_balance(spl_token::state::Account::LEN)
+                .minimum_balance(account_len as usize)
                 .max(1)
                 .saturating_sub(associated_token_account.lamports());
             if required_lamports > 0 {
@@ -628,7 +633,7 @@ impl Processor {
             invoke_signed(
                 &system_instruction::allocate(
                     associated_token_account.key,
-                    spl_token::state::Account::LEN as u64,
+                    account_len,
                 ),
                 &[
                     associated_token_account.clone(),
@@ -645,21 +650,39 @@ impl Processor {
                 &[&associated_account_signer_seeds],
             )?;
 
-            invoke(
-                &spl_token::instruction::initialize_account(
-                    spl_token_program_id,
-                    associated_token_account.key,
-                    token_mint_account.key,
-                    associated_owner_account.key,
-                )?,
-                &[
-                    associated_token_account.clone(),
-                    token_mint_account.clone(),
-                    associated_owner_account.clone(),
-                    rent_sysvar_account.clone(),
-                    spl_token_program_account.clone(),
-                ],
-            )?;
+            if *spl_token_program_id == spl_token::id() {
+                invoke(
+                    &spl_token::instruction::initialize_account(
+                        spl_token_program_id,
+                        associated_token_account.key,
+                        token_mint_account.key,
+                        associated_owner_account.key,
+                    )?,
+                    &[
+                        associated_token_account.clone(),
+                        token_mint_account.clone(),
+                        associated_owner_account.clone(),
+                        rent_sysvar_account.clone(),
+                        spl_token_program_account.clone(),
+                    ],
+                )?;
+            } else {
+                invoke(
+                    &spl_token_2022::instruction::initialize_account(
+                        spl_token_program_id,
+                        associated_token_account.key,
+                        token_mint_account.key,
+                        associated_owner_account.key,
+                    )?,
+                    &[
+                        associated_token_account.clone(),
+                        token_mint_account.clone(),
+                        associated_owner_account.clone(),
+                        rent_sysvar_account.clone(),
+                        spl_token_program_account.clone(),
+                    ],
+                )?;
+            }
         } else {
             associated_token_address.log();
             return Err(AmmError::RepeatCreateAmm.into());
@@ -699,8 +722,13 @@ impl Processor {
                 &[bump_seed],
             ];
             let rent = &Rent::from_account_info(rent_sysvar_account)?;
+            let mint_len: u64 = if *spl_token_program_id == spl_token::id() {
+                spl_token::state::Mint::LEN as u64
+            } else {
+                spl_token_2022::state::Mint::LEN as u64
+            };
             let required_lamports = rent
-                .minimum_balance(spl_token::state::Mint::LEN)
+                .minimum_balance(mint_len as usize)
                 .max(1)
                 .saturating_sub(associated_token_account.lamports());
             if required_lamports > 0 {
@@ -720,7 +748,7 @@ impl Processor {
             invoke_signed(
                 &system_instruction::allocate(
                     associated_token_account.key,
-                    spl_token::state::Mint::LEN as u64,
+                    mint_len,
                 ),
                 &[
                     associated_token_account.clone(),
@@ -737,21 +765,39 @@ impl Processor {
                 &[&associated_account_signer_seeds],
             )?;
 
-            invoke(
-                &spl_token::instruction::initialize_mint(
-                    spl_token_program_id,
-                    associated_token_account.key,
-                    associated_owner_account.key,
-                    None,
-                    mint_decimals,
-                )?,
-                &[
-                    associated_token_account.clone(),
-                    associated_owner_account.clone(),
-                    rent_sysvar_account.clone(),
-                    spl_token_program_account.clone(),
-                ],
-            )?;
+            if *spl_token_program_id == spl_token::id() {
+                invoke(
+                    &spl_token::instruction::initialize_mint(
+                        spl_token_program_id,
+                        associated_token_account.key,
+                        associated_owner_account.key,
+                        None,
+                        mint_decimals,
+                    )?,
+                    &[
+                        associated_token_account.clone(),
+                        associated_owner_account.clone(),
+                        rent_sysvar_account.clone(),
+                        spl_token_program_account.clone(),
+                    ],
+                )?;
+            } else {
+                invoke(
+                    &spl_token_2022::instruction::initialize_mint2(
+                        spl_token_program_id,
+                        associated_token_account.key,
+                        associated_owner_account.key,
+                        None,
+                        mint_decimals,
+                    )?,
+                    &[
+                        associated_token_account.clone(),
+                        associated_owner_account.clone(),
+                        rent_sysvar_account.clone(),
+                        spl_token_program_account.clone(),
+                    ],
+                )?;
+            }
         } else {
             associated_token_address.log();
             return Err(AmmError::RepeatCreateAmm.into());
@@ -870,12 +916,11 @@ impl Processor {
         if !user_wallet_info.is_signer {
             return Err(AmmError::InvalidSignAccount.into());
         }
-        check_assert_eq!(
-            *token_program_info.key,
-            spl_token::id(),
-            "spl_token_program",
-            AmmError::InvalidSplTokenProgram
-        );
+        // Allow both SPL Token and Token-2022
+        let token_program = *token_program_info.key;
+        if token_program != spl_token::id() && token_program != spl_token_2022::id() {
+            return Err(AmmError::InvalidSplTokenProgram.into());
+        }
         let spl_token_program_id = token_program_info.key;
         check_assert_eq!(
             *ata_token_program_info.key,
@@ -918,22 +963,35 @@ impl Processor {
                     system_program_info.clone(),
                 ],
             )?;
-            invoke(
-                &spl_token::instruction::sync_native(
-                    token_program_info.key,
-                    create_fee_destination_info.key,
-                )?,
-                &[
-                    token_program_info.clone(),
-                    create_fee_destination_info.clone(),
-                ],
-            )?;
+            // sync_native for either SPL Token or Token-2022
+            if *token_program_info.key == spl_token::id() {
+                invoke(
+                    &spl_token::instruction::sync_native(
+                        token_program_info.key,
+                        create_fee_destination_info.key,
+                    )?,
+                    &[
+                        token_program_info.clone(),
+                        create_fee_destination_info.clone(),
+                    ],
+                )?;
+            } else {
+                invoke(
+                    &spl_token_2022::instruction::sync_native(
+                        token_program_info.key,
+                        create_fee_destination_info.key,
+                    )?,
+                    &[
+                        token_program_info.clone(),
+                        create_fee_destination_info.clone(),
+                    ],
+                )?;
+            }
         }
 
-        // unpack and check coin_mint
-        let coin_mint = Self::unpack_mint(&amm_coin_mint_info, spl_token_program_id)?;
-        // unpack and check pc_mint
-        let pc_mint = Self::unpack_mint(&amm_pc_mint_info, spl_token_program_id)?;
+        // unpack and check mints (support Token-2022 extensions)
+        let coin_mint = crate::token_utils::unpack_mint(&amm_coin_mint_info, spl_token_program_id)?;
+        let pc_mint = crate::token_utils::unpack_mint(&amm_pc_mint_info, spl_token_program_id)?;
 
         // create target_order account
         Self::generate_amm_associated_account(
@@ -1062,7 +1120,7 @@ impl Processor {
 
         // unpack and check token_coin
         let amm_coin_vault =
-            Self::unpack_token_account(&amm_coin_vault_info, spl_token_program_id)?;
+            crate::token_utils::unpack_token_account(&amm_coin_vault_info, spl_token_program_id)?;
         check_assert_eq!(
             amm_coin_vault.owner,
             *amm_authority_info.key,
@@ -1085,7 +1143,7 @@ impl Processor {
             AmmError::InvalidCoinMint
         );
         // unpack and check token_pc
-        let amm_pc_vault = Self::unpack_token_account(&amm_pc_vault_info, spl_token_program_id)?;
+        let amm_pc_vault = crate::token_utils::unpack_token_account(&amm_pc_vault_info, spl_token_program_id)?;
         check_assert_eq!(
             amm_pc_vault.owner,
             *amm_authority_info.key,
@@ -1286,12 +1344,11 @@ impl Processor {
         } else {
             enable_orderbook = false;
         }
-        check_assert_eq!(
-            *token_program_info.key,
-            spl_token::id(),
-            "spl_token_program",
-            AmmError::InvalidSplTokenProgram
-        );
+        // Allow both SPL Token and Token-2022
+        let token_program = *token_program_info.key;
+        if token_program != spl_token::id() && token_program != spl_token_2022::id() {
+            return Err(AmmError::InvalidSplTokenProgram.into());
+        }
         let spl_token_program_id = token_program_info.key;
         // token_coin must be amm.coin_vault or token_source_coin must not be amm.coin_vault
         if *amm_coin_vault_info.key != amm.coin_vault
@@ -1316,12 +1373,12 @@ impl Processor {
             AmmError::InvalidTargetOrders
         );
         let amm_coin_vault =
-            Self::unpack_token_account(&amm_coin_vault_info, spl_token_program_id)?;
-        let amm_pc_vault = Self::unpack_token_account(&amm_pc_vault_info, spl_token_program_id)?;
+            crate::token_utils::unpack_token_account(&amm_coin_vault_info, spl_token_program_id)?;
+        let amm_pc_vault = crate::token_utils::unpack_token_account(&amm_pc_vault_info, spl_token_program_id)?;
         let user_source_coin =
-            Self::unpack_token_account(&user_source_coin_info, spl_token_program_id)?;
+            crate::token_utils::unpack_token_account(&user_source_coin_info, spl_token_program_id)?;
         let user_source_pc =
-            Self::unpack_token_account(&user_source_pc_info, spl_token_program_id)?;
+            crate::token_utils::unpack_token_account(&user_source_pc_info, spl_token_program_id)?;
         let mut target_orders =
             TargetOrders::load_mut_checked(&amm_target_orders_info, program_id, amm_info.key)?;
         // calc the remaining total_pc & total_coin

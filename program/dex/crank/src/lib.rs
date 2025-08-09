@@ -56,6 +56,10 @@ use serum_dex::state::Request;
 use serum_dex::state::RequestQueueHeader;
 use serum_dex::state::{AccountFlag, Market, MarketState, MarketStateV2};
 
+pub mod token_2022_program {
+    solana_program::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+}
+
 pub fn with_logging<F: FnOnce()>(_to: &str, fnc: F) {
     fnc();
 }
@@ -1472,22 +1476,21 @@ fn create_account(
     let spl_account = Keypair::generate(&mut OsRng);
     let signers = vec![payer, &spl_account];
 
-    let lamports = client.get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?;
+    let mint_acc = client.get_account(mint_pubkey)?;
+let token_program_id = if mint_acc.owner == spl_token::ID {
+    spl_token::ID
+} else {
+    token_2022_program::ID
+};
 
-    let create_account_instr = solana_sdk::system_instruction::create_account(
-        &payer.pubkey(),
-        &spl_account.pubkey(),
-        lamports,
-        spl_token::state::Account::LEN as u64,
-        &spl_token::ID,
-    );
-
-    let init_account_instr = token_instruction::initialize_account(
-        &spl_token::ID,
-        &spl_account.pubkey(),
-        mint_pubkey,
-        owner_pubkey,
-    )?;
+let lamports = client.get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?;
+let create_account_instr = solana_sdk::system_instruction::create_account(
+    &payer.pubkey(), &spl_account.pubkey(), lamports,
+    spl_token::state::Account::LEN as u64, &token_program_id,
+);
+let init_account_instr = token_instruction::initialize_account(
+    &token_program_id, &spl_account.pubkey(), mint_pubkey, owner_pubkey,
+)?;
 
     let instructions = vec![create_account_instr, init_account_instr];
 
@@ -1538,20 +1541,20 @@ fn mint_to_existing_account(
 
 fn initialize_token_account(client: &RpcClient, mint: &Pubkey, owner: &Keypair) -> Result<Keypair> {
     let recip_keypair = Keypair::generate(&mut OsRng);
-    let lamports = client.get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?;
-    let create_recip_instr = solana_sdk::system_instruction::create_account(
-        &owner.pubkey(),
-        &recip_keypair.pubkey(),
-        lamports,
-        spl_token::state::Account::LEN as u64,
-        &spl_token::ID,
-    );
-    let init_recip_instr = token_instruction::initialize_account(
-        &spl_token::ID,
-        &recip_keypair.pubkey(),
-        mint,
-        &owner.pubkey(),
-    )?;
+    let mint_acc = client.get_account(mint)?;
+let token_program_id = if mint_acc.owner == spl_token::ID {
+    spl_token::ID
+} else {
+    token_2022_program::ID
+};
+let lamports = client.get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?;
+let create_recip_instr = solana_sdk::system_instruction::create_account(
+    &owner.pubkey(), &recip_keypair.pubkey(), lamports,
+    spl_token::state::Account::LEN as u64, &token_program_id,
+);
+let init_recip_instr = token_instruction::initialize_account(
+    &token_program_id, &recip_keypair.pubkey(), mint, &owner.pubkey(),
+)?;
     let signers = vec![owner, &recip_keypair];
     let instructions = vec![create_recip_instr, init_recip_instr];
     let recent_hash = client.get_latest_blockhash()?;

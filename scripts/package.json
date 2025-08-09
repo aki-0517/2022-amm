@@ -7,6 +7,8 @@
   "scripts": {
     "smoke": "node 1-smoke.js",
     "create:tokens": "node 2-create-tokens.js",
+    "create:wrapper-tokens": "node 2-create-wrapper-tokens.js",
+    "create:market": "node create-openbook-market.js",
     "init:pool": "node 3-init-pool.js",
     "deposit": "node 4-deposit.js",
     "swap": "node 5-swap.js"

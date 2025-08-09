@@ -6,14 +6,14 @@ repository = "https://github.com/project-serum/serum-dex"
 edition = "2018"
 
 [features]
-program = ["spl-token/program", "solana-sdk/program", "solana-program"]
-client = ["spl-token/default", "solana-sdk/default", "solana-client", "anyhow", "rand", "serde_json", "bs58", "bincode"]
+program = ["solana-program"]
+client = ["solana-client", "anyhow", "rand", "serde_json", "bs58", "bincode"]
 strict = []
 devnet = []
 default = []
 
 [dependencies]
-spl-token = { version = "2.0.8", default-features = false }
+spl-token = { version = "3.5.0", default-features = false, features = ["no-entrypoint"] }
 arrayref = "0.3.6"
 serde = { version = "1.0.150", features = ["derive"] }
 solana-sdk = { version = "1.10.41", default-features = false }

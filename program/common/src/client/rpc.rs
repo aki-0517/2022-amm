@@ -12,6 +12,7 @@ use solana_sdk::signature::{Keypair, Signature, Signer};
 use solana_sdk::transaction::Transaction;
 use spl_token::instruction::{self as token_instruction};
 use std::convert::Into;
+use std::str::FromStr;
 
 pub fn create_account_rent_exempt(
     client: &RpcClient,
@@ -83,22 +84,21 @@ pub fn create_token_account_instructions(
     owner_pubkey: &Pubkey,
     payer: &Keypair,
 ) -> Result<Vec<Instruction>> {
-    let lamports = client.get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?;
-
-    let create_account_instr = solana_sdk::system_instruction::create_account(
-        &payer.pubkey(),
-        &spl_account,
-        lamports,
-        spl_token::state::Account::LEN as u64,
-        &spl_token::ID,
-    );
-
-    let init_account_instr = token_instruction::initialize_account(
-        &spl_token::ID,
-        &spl_account,
-        mint_pubkey,
-        owner_pubkey,
-    )?;
+    let mint_acc = client.get_account(mint_pubkey)?;
+let token_program_id = if mint_acc.owner == spl_token::ID {
+    spl_token::ID
+} else {
+    // Token-2022 の Program ID
+    Pubkey::from_str("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb").unwrap()
+};
+let lamports = client.get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)?;
+let create_account_instr = solana_sdk::system_instruction::create_account(
+    &payer.pubkey(), &spl_account, lamports,
+    spl_token::state::Account::LEN as u64, &token_program_id,
+);
+let init_account_instr = token_instruction::initialize_account(
+    &token_program_id, &spl_account, mint_pubkey, owner_pubkey,
+)?;
 
     let instructions = vec![create_account_instr, init_account_instr];
 

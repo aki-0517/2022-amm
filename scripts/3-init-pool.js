@@ -70,8 +70,8 @@ async function main() {
   const userCoin = asPk(getEnv('USER_COIN_ACCOUNT'));
   const userPc = asPk(getEnv('USER_PC_ACCOUNT'));
 
-  const coinTokenProgram = asPk(getEnv('COIN_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
-  const pcTokenProgram = asPk(getEnv('PC_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  // Token program must be single and consistent. For Token-2022, both coin/pc must be 2022.
+  const tokenProgram = asPk(getEnv('COIN_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
   
   const userLp = getAssociatedTokenAddressSync(lpMint, payer.publicKey);
 
@@ -82,8 +82,7 @@ async function main() {
   const data = packInitialize2({ nonce, openTime, initPcAmount: initPc, initCoinAmount: initCoin });
 
   const keys = [
-    meta(coinTokenProgram, false, false), // Coin token program
-    meta(pcTokenProgram, false, false), // PC token program
+    meta(tokenProgram, false, false), // Token program (single)
     meta(ASSOCIATED_TOKEN_PROGRAM_ID, false, false),
     meta(SystemProgram.programId, false, false),
     meta(SYSVAR_RENT_PUBKEY, false, false),

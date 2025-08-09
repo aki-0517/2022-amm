@@ -20,6 +20,10 @@ use solana_program::{
     rent::Rent, sysvar::Sysvar,
 };
 use spl_token::error::TokenError;
+// Hardcode Token-2022 program id to avoid bringing in spl_token_2022 crate (keeps 1.10 compat)
+pub mod token_2022_program {
+    solana_program::declare_id!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
+}
 
 use crate::{
     critbit::Slab,
@@ -1413,7 +1417,7 @@ pub fn gen_vault_signer_key(
 }
 
 #[cfg(not(any(test, feature = "fuzz")))]
-fn invoke_spl_token(
+    fn invoke_spl_token(
     instruction: &solana_program::instruction::Instruction,
     account_infos: &[AccountInfo],
     signers_seeds: &[&[&[u8]]],
@@ -1422,12 +1426,12 @@ fn invoke_spl_token(
 }
 
 #[cfg(any(test, feature = "fuzz"))]
-fn invoke_spl_token(
+    fn invoke_spl_token(
     instruction: &solana_program::instruction::Instruction,
     account_infos: &[AccountInfo],
     _signers_seeds: &[&[&[u8]]],
 ) -> solana_program::entrypoint::ProgramResult {
-    assert_eq!(instruction.program_id, spl_token::ID);
+        assert!(instruction.program_id == spl_token::ID || instruction.program_id == spl_token_2022::ID);
     let account_infos: Vec<AccountInfo> = instruction
         .accounts
         .iter()
@@ -1439,41 +1443,70 @@ fn invoke_spl_token(
                 .clone()
         })
         .collect();
-    spl_token::processor::Processor::process(
-        &instruction.program_id,
-        &account_infos,
-        &instruction.data,
-    )?;
+        if instruction.program_id == spl_token::ID {
+            spl_token::processor::Processor::process(
+                &instruction.program_id,
+                &account_infos,
+                &instruction.data,
+            )?;
+        } else {
+            spl_token_2022::processor::Processor::process(
+                &instruction.program_id,
+                &account_infos,
+                &instruction.data,
+            )?;
+        }
     Ok(())
 }
 
 #[cfg(feature = "program")]
-fn send_from_vault<'a, 'b: 'a>(
-    native_amount: u64,
-    recipient: account_parser::TokenAccount<'a, 'b>,
-    vault: account_parser::TokenAccount<'a, 'b>,
-    spl_token_program: account_parser::SplTokenProgram<'a, 'b>,
-    vault_signer: account_parser::VaultSigner<'a, 'b>,
-    vault_signer_seeds: &[&[u8]],
-) -> DexResult {
-    let deposit_instruction = spl_token::instruction::transfer(
-        &spl_token::ID,
-        vault.inner().key,
-        recipient.inner().key,
-        &vault_signer.inner().key,
-        &[],
-        native_amount,
-    )?;
-    let accounts: &[AccountInfo] = &[
-        vault.inner().clone(),
-        recipient.inner().clone(),
-        vault_signer.inner().clone(),
-        spl_token_program.inner().clone(),
-    ];
-    invoke_spl_token(&deposit_instruction, &accounts[..], &[vault_signer_seeds])
-        .map_err(|_| DexErrorCode::TransferFailed)?;
-    Ok(())
-}
+    fn send_from_vault<'a, 'b: 'a>(
+        native_amount: u64,
+        recipient: account_parser::TokenAccount<'a, 'b>,
+        vault: account_parser::TokenAccount<'a, 'b>,
+        spl_token_program: account_parser::SplTokenProgram<'a, 'b>,
+        vault_signer: account_parser::VaultSigner<'a, 'b>,
+        vault_signer_seeds: &[&[u8]],
+    ) -> DexResult {
+        // Decide based on token program id
+        if *spl_token_program.inner().key == spl_token::ID {
+            let ix = spl_token::instruction::transfer(
+                &spl_token::ID,
+                vault.inner().key,
+                recipient.inner().key,
+                &vault_signer.inner().key,
+                &[],
+                native_amount,
+            )?;
+            let accounts: &[AccountInfo] = &[
+                vault.inner().clone(),
+                recipient.inner().clone(),
+                vault_signer.inner().clone(),
+                spl_token_program.inner().clone(),
+            ];
+            invoke_spl_token(&ix, &accounts[..], &[vault_signer_seeds])
+                .map_err(|_| DexErrorCode::TransferFailed)?;
+        } else {
+            // Token-2022: fall back to unchecked transfer (互換確保; 将来的にcheckedへ)
+            let ix = spl_token::instruction::transfer(
+                &token_2022_program::ID,
+                vault.inner().key,
+                recipient.inner().key,
+                &vault_signer.inner().key,
+                &[],
+                native_amount,
+            )?;
+            let accounts: &[AccountInfo] = &[
+                vault.inner().clone(),
+                recipient.inner().clone(),
+                vault_signer.inner().clone(),
+                spl_token_program.inner().clone(),
+            ];
+            invoke_spl_token(&ix, &accounts[..], &[vault_signer_seeds])
+                .map_err(|_| DexErrorCode::TransferFailed)?;
+        }
+        Ok(())
+    }
 
 #[cfg(feature = "fuzz")]
 pub mod fuzz_account_parser {
@@ -1504,25 +1537,31 @@ pub(crate) mod account_parser {
     }
 
     declare_validated_account_wrapper!(SplTokenProgram, |account: &AccountInfo| {
-        check_assert_eq!(*account.key, spl_token::ID)?;
+        // Accept both SPL Token and Token-2022
+        check_assert!(
+            *account.key == spl_token::ID || *account.key == token_2022_program::ID
+        )?;
         Ok(())
     });
 
     declare_validated_account_wrapper!(TokenMint, |mint: &AccountInfo| {
-        check_assert_eq!(*mint.owner, spl_token::ID)?;
+        // Support SPL Token and Token-2022 mints (base layout is compatible)
+        check_assert!(*mint.owner == spl_token::ID || *mint.owner == token_2022_program::ID)?;
         let data = mint.try_borrow_data()?;
-        check_assert_eq!(data.len(), spl_token::state::Mint::LEN)?;
-
+        // Do not enforce exact len; allow extensions
+        check_assert!(data.len() >= spl_token::state::Mint::LEN)?;
+        // is_initialized flag is at the same offset in base layout
         let is_initialized = data[0x2d];
         check_assert_eq!(is_initialized, 1u8)?;
         Ok(())
     });
 
     declare_validated_account_wrapper!(TokenAccount, |account: &AccountInfo| {
-        check_assert_eq!(*account.owner, spl_token::ID)?;
+        check_assert!(*account.owner == spl_token::ID || *account.owner == token_2022_program::ID)?;
         let data = account.try_borrow_data()?;
-        check_assert_eq!(data.len(), spl_token::state::Account::LEN)?;
-
+        // Allow Token-2022 (possibly extended) lengths
+        check_assert!(data.len() >= spl_token::state::Account::LEN)?;
+        // is_initialized flag is at the same offset in base layout
         let is_initialized = data[0x6c];
         check_assert_eq!(is_initialized, 1u8)?;
         Ok(())

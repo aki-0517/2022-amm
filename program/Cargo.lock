@@ -387,7 +387,7 @@ dependencies = [
  "serum_dex 0.4.0",
  "solana-program",
  "spl-associated-token-account",
- "spl-token 3.5.0",
+ "spl-token",
 ]
 
 [[package]]
@@ -1021,8 +1021,9 @@ dependencies = [
  "slog-stdlog",
  "sloggers",
  "solana-client",
+ "solana-program",
  "solana-sdk",
- "spl-token 3.5.0",
+ "spl-token",
  "threadpool",
  "tokio 0.2.25",
  "warp",
@@ -3373,7 +3374,7 @@ dependencies = [
  "solana-client",
  "solana-program",
  "solana-sdk",
- "spl-token 2.0.8",
+ "spl-token",
 ]
 
 [[package]]
@@ -3383,7 +3384,7 @@ dependencies = [
  "anchor-lang 0.18.2",
  "anchor-spl",
  "serum_dex 0.5.10",
- "spl-token 3.5.0",
+ "spl-token",
 ]
 
 [[package]]
@@ -3411,7 +3412,7 @@ dependencies = [
  "safe-transmute",
  "serde",
  "solana-program",
- "spl-token 3.5.0",
+ "spl-token",
  "static_assertions",
  "thiserror",
  "without-alloc",
@@ -3436,7 +3437,7 @@ dependencies = [
  "serde",
  "solana-program",
  "solana-security-txt",
- "spl-token 3.5.0",
+ "spl-token",
  "static_assertions",
  "thiserror",
  "without-alloc",
@@ -3650,7 +3651,7 @@ dependencies = [
  "solana-config-program",
  "solana-sdk",
  "solana-vote-program",
- "spl-token 3.5.0",
+ "spl-token",
  "spl-token-2022",
  "thiserror",
  "zstd",
@@ -4118,7 +4119,7 @@ dependencies = [
  "solana-vote-program",
  "spl-associated-token-account",
  "spl-memo",
- "spl-token 3.5.0",
+ "spl-token",
  "spl-token-2022",
  "thiserror",
 ]
@@ -4217,7 +4218,7 @@ dependencies = [
  "num-derive",
  "num-traits",
  "solana-program",
- "spl-token 3.5.0",
+ "spl-token",
  "spl-token-2022",
  "thiserror",
 ]
@@ -4229,21 +4230,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0dc6f70db6bacea7ff25870b016a65ba1d1b6013536f08e4fd79a8f9005325"
 dependencies = [
  "solana-program",
-]
-
-[[package]]
-name = "spl-token"
-version = "2.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaa27ab75067c63b8804d9fff30bd2e8bfb5be448bea8067ed768381e70ca181"
-dependencies = [
- "arrayref",
- "num-derive",
- "num-traits",
- "num_enum",
- "remove_dir_all",
- "solana-sdk",
- "thiserror",
 ]
 
 [[package]]
@@ -4275,7 +4261,7 @@ dependencies = [
  "solana-program",
  "solana-zk-token-sdk",
  "spl-memo",
- "spl-token 3.5.0",
+ "spl-token",
  "thiserror",
 ]
 

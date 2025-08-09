@@ -17,12 +17,10 @@ use crate::error::AmmError;
 pub fn token_transfer_with_hook<'a>(
     token_program: AccountInfo<'a>,
     source: AccountInfo<'a>,
-    mint: AccountInfo<'a>,
     destination: AccountInfo<'a>,
     authority: AccountInfo<'a>,
     remaining_accounts: &[AccountInfo<'a>],
     amount: u64,
-    decimals: u8,
     authority_signature_seeds: &[&[u8]],
 ) -> Result<(), ProgramError> {
     if *token_program.key == spl_token::id() {
@@ -42,35 +40,27 @@ pub fn token_transfer_with_hook<'a>(
             &[authority_signature_seeds],
         )
     } else if *token_program.key == spl_token_2022::id() {
-        // Token-2022 transfer_checked with potential hooks
-        let ix = spl_token_2022::instruction::transfer_checked(
+        // Token-2022 transfer with potential hooks (unchecked)
+        let ix = spl_token_2022::instruction::transfer(
             token_program.key,
             source.key,
-            mint.key,
             destination.key,
             authority.key,
             &[],
             amount,
-            decimals,
         )?;
 
         // Prepare accounts including remaining accounts for hooks
         let mut accounts = vec![
             source.clone(),
-            mint.clone(),
             destination.clone(),
             authority.clone(),
             token_program.clone(),
         ];
-        
         // Add remaining accounts for transfer hooks
         accounts.extend_from_slice(remaining_accounts);
 
-        invoke_signed(
-            &ix,
-            &accounts,
-            &[authority_signature_seeds],
-        )
+        invoke_signed(&ix, &accounts, &[authority_signature_seeds])
     } else {
         Err(ProgramError::InvalidArgument)
     }
