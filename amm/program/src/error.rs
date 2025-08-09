@@ -211,6 +211,17 @@ pub enum AmmError {
     /// Unknown Amm Error
     #[error("Unknown Amm Error")]
     UnknownAmmError,
+    
+    // Token-2022 specific errors
+    /// Transfer hook accounts are invalid or missing
+    #[error("Transfer hook accounts are invalid or missing")]
+    InvalidTransferHookAccounts,
+    /// Transfer hook program is not whitelisted
+    #[error("Transfer hook program is not whitelisted")]
+    UnauthorizedTransferHook,
+    /// Incompatible token programs for operation
+    #[error("Incompatible token programs for operation")]
+    IncompatibleTokenPrograms,
 }
 
 impl From<AmmError> for ProgramError {
@@ -304,6 +315,9 @@ impl PrintProgramError for AmmError {
             AmmError::MarketLotSizeIsTooLarge => msg!("Error: Market lotSize is too large"),
             AmmError::InitLpAmountTooLess => msg!("Error: Init lp amount is too less(Because 10**lp_decimals amount lp will be locked)"),
             AmmError::UnknownAmmError => msg!("Error: UnknownAmmError"),
+            AmmError::InvalidTransferHookAccounts => msg!("Error: Transfer hook accounts are invalid or missing"),
+            AmmError::UnauthorizedTransferHook => msg!("Error: Transfer hook program is not whitelisted"),
+            AmmError::IncompatibleTokenPrograms => msg!("Error: Incompatible token programs for operation"),
         }
     }
 }

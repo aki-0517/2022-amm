@@ -6,7 +6,6 @@
 
 | Environment         |   [PROGRAM](/program)                          |
 | ------------------- | ---------------------------------------------- |
-| Mainnet             | `675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8` |
 | Devnet              | `DRaya7Kj3aMWQSy19kSjvmuwq9docCHofyP9kanQGaav` |
 
 ## Overview
@@ -16,39 +15,132 @@
 - **The dev document is [here](https://github.com/raydium-io/raydium-docs/tree/master/dev-resources)**
 
 ## Environment Setup
-1. Install [Rust](https://www.rust-lang.org/tools/install).
-2. Install [Solana](https://docs.solana.com/cli/install-solana-cli-tools) and then run `solana-keygen new` to create a keypair at the default location.
+
+### Prerequisites
+1. Install [Rust](https://www.rust-lang.org/tools/install) (version 1.75.0 or later)
+2. Install [Solana CLI](https://docs.solana.com/cli/install-solana-cli-tools) (version 2.1.0)
+3. Create a keypair: `solana-keygen new`
+4. Set your Solana configuration:
+   ```bash
+   solana config set --url https://api.mainnet-beta.solana.com  # for mainnet
+   # or
+   solana config set --url https://api.devnet.solana.com       # for devnet
+   ```
 
 ## Build
 
-Clone the repository and enter the source code directory.
+Clone the repository and navigate to the program directory:
 ```bash
 git clone https://github.com/raydium-io/raydium-amm
 cd raydium-amm/program
 ```
 
-### Mainnet Build
+### Build Commands
+
+#### Mainnet Build
+```bash
+cargo build-sbf --release
+```
+
+#### Devnet Build
+```bash
+cargo build-sbf --release --features devnet
+```
+
+#### Testnet Build
+```bash
+cargo build-sbf --release --features testnet
+```
+
+#### Development Build (Debug)
 ```bash
 cargo build-sbf
 ```
-### Devnet Build
-```bash
-cargo build-sbf --features devnet
-```
-### Localnet Build
-You must update these pubkeys in the "config_feature" as yours over the localnet feature before build;
 
+### Build Outputs
+After building successfully, the compiled program files will be located in:
+- `target/deploy/raydium_amm.so` - The compiled Solana program
+- `target/deploy/raydium_amm-keypair.json` - Program keypair (if generated)
+
+### Build Verification
+Verify your build completed successfully:
 ```bash
-cargo build-sbf --features localnet
+ls -la target/deploy/
 ```
 
-After building, the smart contract files are all located in the target directory.
+## Test
+
+### Running Tests
+Run the comprehensive test suite:
+```bash
+# Run all tests
+cargo test
+
+# Run tests with verbose output
+cargo test -- --nocapture
+
+# Run specific test
+cargo test test_token_program_compatibility
+```
+
+### Test Coverage
+The test suite includes:
+- Token program compatibility tests
+- Whitelist functionality tests
+- Hook safety validation tests
+- AMM pool operation tests
+- Error handling tests
 
 ## Deploy
+
+### Prerequisites for Deployment
+1. Ensure you have sufficient SOL for deployment fees
+2. Verify your Solana configuration:
+   ```bash
+   solana config get
+   ```
+3. Check your wallet balance:
+   ```bash
+   solana balance
+   ```
+
+### Deployment Commands
+
+#### Deploy to Devnet
 ```bash
-solana deploy
+# Set to devnet
+solana config set --url https://api.devnet.solana.com
+
+# Deploy the program
+solana program deploy target/deploy/raydium_amm.so
 ```
-Attention, check your configuration and confirm the environment you want to deploy.
+
+#### Deploy to Mainnet
+```bash
+# Set to mainnet
+solana config set --url https://api.mainnet-beta.solana.com
+
+# Deploy the program (requires significant SOL)
+solana program deploy target/deploy/raydium_amm.so
+```
+
+#### Upgrade Existing Program
+```bash
+# Upgrade with authority
+solana program deploy target/deploy/raydium_amm.so --program-id <PROGRAM_ID>
+```
+
+### Post-Deployment Verification
+Verify your deployment:
+```bash
+# Check program account
+solana account <PROGRAM_ID>
+
+# Verify program info
+solana program show <PROGRAM_ID>
+```
+
+**⚠️ Important**: Always test on devnet before deploying to mainnet. Mainnet deployments are irreversible and require significant SOL for rent.
 
 ## QuickStart
 

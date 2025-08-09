@@ -862,6 +862,8 @@ pub fn initialize2(
     user_token_coin: &Pubkey,
     user_token_pc: &Pubkey,
     user_token_lp: &Pubkey,
+    token_program_coin: &Pubkey,
+    token_program_pc: &Pubkey,
     nonce: u8,
     open_time: u64,
     init_pc_amount: u64,
@@ -876,8 +878,9 @@ pub fn initialize2(
     let data = init_data.pack()?;
 
     let accounts = vec![
-        // spl & sys
-        AccountMeta::new_readonly(spl_token::id(), false),
+        // spl & sys  
+        AccountMeta::new_readonly(*token_program_coin, false),
+        AccountMeta::new_readonly(*token_program_pc, false),
         AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         AccountMeta::new_readonly(solana_program::system_program::id(), false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -926,6 +929,8 @@ pub fn deposit(
     user_token_pc: &Pubkey,
     user_token_lp: &Pubkey,
     user_owner: &Pubkey,
+    token_program_coin: &Pubkey,
+    token_program_pc: &Pubkey,
     max_coin_amount: u64,
     max_pc_amount: u64,
     base_side: u64,
@@ -940,8 +945,8 @@ pub fn deposit(
     .pack()?;
 
     let accounts = vec![
-        // spl token
-        AccountMeta::new_readonly(spl_token::id(), false),
+        // spl token - use dynamic token programs
+        AccountMeta::new_readonly(*token_program_coin, false),
         // amm
         AccountMeta::new(*amm_pool, false),
         AccountMeta::new_readonly(*amm_authority, false),
@@ -958,6 +963,8 @@ pub fn deposit(
         AccountMeta::new(*user_token_lp, false),
         AccountMeta::new_readonly(*user_owner, true),
         AccountMeta::new_readonly(*market_event_queue, false),
+        // token program for PC tokens
+        AccountMeta::new_readonly(*token_program_pc, false),
     ];
 
     Ok(Instruction {
