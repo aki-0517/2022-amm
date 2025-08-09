@@ -7,8 +7,10 @@ import {
 } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import {
   getConnection,
@@ -16,6 +18,7 @@ import {
   getPayer,
   asPk,
   findAuthority,
+  findConfig,
   findAmmPdaForMarket,
   SEEDS,
   u64ToLeBytes,
@@ -61,15 +64,16 @@ async function main() {
   const { pda: lpMint } = findAmmPdaForMarket(programId, market, SEEDS.LP_MINT_ASSOCIATED_SEED);
   const { pda: coinVault } = findAmmPdaForMarket(programId, market, SEEDS.COIN_VAULT_ASSOCIATED_SEED);
   const { pda: pcVault } = findAmmPdaForMarket(programId, market, SEEDS.PC_VAULT_ASSOCIATED_SEED);
-  const { pda: ammConfig } = findAmmPdaForMarket(programId, market, SEEDS.AMM_CONFIG_SEED); // wrong; config is only by seed without market
-
-  // Correct config PDA (independent of market)
-  const [configPda] = PublicKey.findProgramAddressSync([Buffer.from(SEEDS.AMM_CONFIG_SEED)], programId);
+  // Config PDA (independent of market)
+  const { pda: configPda } = findConfig(programId);
 
   const userCoin = asPk(getEnv('USER_COIN_ACCOUNT'));
   const userPc = asPk(getEnv('USER_PC_ACCOUNT'));
 
-  const userLp = await getAssociatedTokenAddress(lpMint, payer.publicKey);
+  const coinTokenProgram = asPk(getEnv('COIN_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  const pcTokenProgram = asPk(getEnv('PC_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  
+  const userLp = getAssociatedTokenAddressSync(lpMint, payer.publicKey);
 
   const initPc = BigInt(getEnv('INIT_PC', '1000000'));
   const initCoin = BigInt(getEnv('INIT_COIN', '1000000'));
@@ -78,7 +82,8 @@ async function main() {
   const data = packInitialize2({ nonce, openTime, initPcAmount: initPc, initCoinAmount: initCoin });
 
   const keys = [
-    meta(TOKEN_PROGRAM_ID, false, false),
+    meta(coinTokenProgram, false, false), // Coin token program
+    meta(pcTokenProgram, false, false), // PC token program
     meta(ASSOCIATED_TOKEN_PROGRAM_ID, false, false),
     meta(SystemProgram.programId, false, false),
     meta(SYSVAR_RENT_PUBKEY, false, false),
@@ -96,8 +101,8 @@ async function main() {
     meta(openbookProgram, false, false),
     meta(market, false, false),
     meta(payer.publicKey, true, true),
-    meta(userCoin, true, false),
-    meta(userPc, true, false),
+    meta(userCoin, false, false),
+    meta(userPc, false, false),
     meta(userLp, true, false),
   ];
 

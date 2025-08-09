@@ -2,7 +2,9 @@ import 'dotenv/config';
 import { Transaction } from '@solana/web3.js';
 import {
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
   getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
 } from '@solana/spl-token';
 import {
   getConnection,
@@ -48,7 +50,10 @@ async function main() {
 
   const userCoin = asPk(getEnv('USER_COIN_ACCOUNT'));
   const userPc = asPk(getEnv('USER_PC_ACCOUNT'));
-  const userLp = await getAssociatedTokenAddress(lpMint, payer.publicKey);
+  const coinTokenProgram = asPk(getEnv('COIN_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  const pcTokenProgram = asPk(getEnv('PC_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  
+  const userLp = getAssociatedTokenAddressSync(lpMint, payer.publicKey);
 
   const maxCoin = BigInt(getEnv('DEPOSIT_MAX_COIN', '1000'));
   const maxPc = BigInt(getEnv('DEPOSIT_MAX_PC', '1000'));
@@ -59,7 +64,7 @@ async function main() {
   const data = packDeposit({ maxCoin, maxPc, baseSide, otherAmountMin });
 
   const keys = [
-    meta(TOKEN_PROGRAM_ID, false, false),
+    meta(coinTokenProgram, false, false), // Coin token program
     meta(ammPool, true, false),
     meta(authority, false, false),
     meta(openOrders, false, false),
@@ -73,6 +78,7 @@ async function main() {
     meta(userLp, true, false),
     meta(payer.publicKey, false, true),
     meta(marketEventQ, false, false),
+    meta(pcTokenProgram, false, false), // PC token program
   ];
 
   const instruction = ix(keys, programId, data);

@@ -1,6 +1,14 @@
-## raydium-amm scripts (Devnet)
+## raydium-amm scripts (Devnet) - Updated for Current Contract
 
-このディレクトリには、以下の5つの手順をDevnet上で実行するためのJSスクリプトが含まれます。
+このディレクトリには、現在のAMMコントラクトに対応した、以下の5つの手順をDevnet上で実行するためのJSスクリプトが含まれます。
+
+**更新内容:**
+- `2-create-tokens.js`: Token-2022トークンの作成に対応（Transfer Hook付きトークンも作成可能）
+- `3-init-pool.js`: 現在のInstruction形式に合わせてアカウント順序とConfig PDA生成を修正、Token-2022対応
+- `4-deposit.js`: 必要なPCトークンプログラムアカウントを追加、Token-2022対応
+- `5-swap.js`: Token-2022トークンでのスワップに対応
+- `shared.js`: Token-2022互換のATA作成・取得ユーティリティを追加
+- 全スクリプト: Token-2022とTransfer Hook対応のアカウント構造に更新
 
 - 1. スモークテスト: `1-smoke.js`
 - 2. 2種の SPL トークン作成: `2-create-tokens.js`
@@ -17,14 +25,16 @@ cd scripts
 npm i
 ```
 
-`.env` を新規作成し、最低限の環境変数を設定します（例）。
+`.env` を新規作成し、環境変数を設定します。`.env.example` をコピーして編集してください。
 
+```bash
+cp .env.example .env
 ```
-SOLANA_RPC_URL=https://api.devnet.solana.com
-WALLET_PATH=${HOME}/.config/solana/id.json
-RAYDIUM_AMM_PROGRAM_ID=<あなたがデプロイしたProgramID>
-OPENBOOK_PROGRAM_ID=EoTcMgcDRTJVZDMZWBoU6rhYHZfkNTVEAfz3uUJRcYGj
-```
+
+重要な設定項目：
+- `USE_TOKEN_2022=true`: Token-2022トークンを作成する場合
+- `TRANSFER_HOOK_PROGRAM_ID=`: Transfer Hook付きトークンを作成する場合（オプション）
+- `RAYDIUM_AMM_PROGRAM_ID=`: デプロイしたAMMプログラムID
 
 補足:
 - プログラムのビルドとデプロイは `docs/devnet-deploy-and-test.md` を参照してください。
@@ -36,12 +46,25 @@ npm run smoke
 ```
 エラーでも構いません（到達確認）。
 
-### 2) 2種の SPL トークン作成
+### 2) Token-2022 または SPL トークン作成
 ```
 npm run create:tokens
 ```
-出力値 `COIN_MINT`, `PC_MINT`, `USER_COIN_ACCOUNT`, `USER_PC_ACCOUNT` を `.env` に反映。
-（スクリプトのデフォルトではどちらも 6 桁のディシマルで、開発用に少量をミントします）
+
+このスクリプトは `.env` の `USE_TOKEN_2022` 設定に基づいて Token-2022 または従来のSPLトークンを作成します：
+
+**Token-2022 の場合:**
+- Transfer Hook 拡張付きトークンも作成可能（`TRANSFER_HOOK_PROGRAM_ID` 設定時）
+- Token-2022 プログラム（`TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb`）使用
+
+**従来SPLトークンの場合:**
+- 従来のTOKEN_PROGRAM_ID使用で互換性維持
+
+出力値を `.env` に反映：
+- `COIN_MINT`, `PC_MINT`, `USER_COIN_ACCOUNT`, `USER_PC_ACCOUNT`
+- `COIN_TOKEN_PROGRAM`, `PC_TOKEN_PROGRAM` （Token-2022の場合）
+
+（スクリプトのデフォルトではどちらも 6 桁のディシマルで、開発用に10億トークンをミントします）
 
 ### 2.5) OpenBook マーケット作成（list-market 実行）
 Raydium のプール初期化には OpenBook マーケットが必要です。OpenBook の `program/dex/crank` ディレクトリに `.env` を作成して必要パラメータを定義し、同ディレクトリから `list-market` を実行してください。詳細解説は `docs/openbook.md` を参照。

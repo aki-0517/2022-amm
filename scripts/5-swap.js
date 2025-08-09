@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { Transaction } from '@solana/web3.js';
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
   getConnection,
   getEnv,
@@ -45,13 +45,17 @@ async function main() {
 
   const userSource = asPk(getEnv('SWAP_SOURCE_ATA'));
   const userDest = asPk(getEnv('SWAP_DEST_ATA'));
+  
+  // Get token programs (default to TOKEN_PROGRAM_ID for backwards compatibility)
+  const sourceTokenProgram = asPk(getEnv('SOURCE_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
+  const destTokenProgram = asPk(getEnv('DEST_TOKEN_PROGRAM', TOKEN_PROGRAM_ID.toBase58()));
 
   const amountIn = BigInt(getEnv('SWAP_AMOUNT_IN', '100'));
   const minimumOut = BigInt(getEnv('SWAP_MINIMUM_OUT', '1'));
   const data = packSwapBaseIn({ amountIn, minimumOut });
 
   const keys = [
-    meta(TOKEN_PROGRAM_ID, false, false),
+    meta(sourceTokenProgram, false, false), // Source token program
     meta(ammPool, true, false),
     meta(authority, false, false),
     meta(openOrders, true, false),
@@ -70,6 +74,14 @@ async function main() {
     meta(userDest, true, false),
     meta(payer.publicKey, false, true),
   ];
+  
+  // Add destination token program if different from source
+  if (!destTokenProgram.equals(sourceTokenProgram)) {
+    keys.push(meta(destTokenProgram, false, false));
+  }
+  
+  // TODO: Add remaining accounts for transfer hooks if needed
+  // This would require reading the mint extensions and building the proper account list
 
   const instruction = ix(keys, programId, data);
   const tx = new Transaction().add(instruction);

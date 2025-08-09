@@ -3,8 +3,10 @@ import fs from 'fs';
 import { Connection, Keypair, PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction } from '@solana/web3.js';
 import {
   getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
   createAssociatedTokenAccountInstruction,
   TOKEN_PROGRAM_ID,
+  TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 
 export function getEnv(name, fallback) {
@@ -59,24 +61,46 @@ export function u16ToLeBytes(num) {
   return buf;
 }
 
-export function ensureAtaIx(owner, mint, ata) {
+export function ensureAtaIx(owner, mint, ata, tokenProgram = TOKEN_PROGRAM_ID) {
   return createAssociatedTokenAccountInstruction(
     owner, // payer
     ata,
     owner, // owner of ATA
-    mint
+    mint,
+    tokenProgram
   );
 }
 
-export async function ensureAta(connection, payer, owner, mint) {
-  const ata = await getAssociatedTokenAddress(mint, owner);
+// Token-2022 compatible ATA creation
+export function ensureAta2022Ix(owner, mint, ata) {
+  return createAssociatedTokenAccountInstruction(
+    owner, // payer
+    ata,
+    owner, // owner of ATA
+    mint,
+    TOKEN_2022_PROGRAM_ID
+  );
+}
+
+export async function ensureAta(connection, payer, owner, mint, tokenProgram = TOKEN_PROGRAM_ID) {
+  const ata = tokenProgram.equals(TOKEN_2022_PROGRAM_ID) 
+    ? getAssociatedTokenAddressSync(mint, owner, false, TOKEN_2022_PROGRAM_ID)
+    : await getAssociatedTokenAddress(mint, owner);
+  
   const info = await connection.getAccountInfo(ata);
   if (!info) {
-    const ix = ensureAtaIx(payer.publicKey, mint, ata);
+    const ix = ensureAtaIx(payer.publicKey, mint, ata, tokenProgram);
     const tx = new Transaction().add(ix);
     await sendAndConfirmTransaction(connection, tx, [payer]);
   }
   return ata;
+}
+
+// Helper to get ATA address for any token program
+export function getAtaAddress(mint, owner, tokenProgram = TOKEN_PROGRAM_ID) {
+  return tokenProgram.equals(TOKEN_2022_PROGRAM_ID)
+    ? getAssociatedTokenAddressSync(mint, owner, false, TOKEN_2022_PROGRAM_ID)
+    : getAssociatedTokenAddressSync(mint, owner);
 }
 
 export const SEEDS = {
@@ -113,6 +137,23 @@ export function findConfig(programId) {
 }
 
 export const TOKEN_PID = TOKEN_PROGRAM_ID;
+export const TOKEN_2022_PID = TOKEN_2022_PROGRAM_ID;
+
+// Helper to determine token program from mint account
+export async function getTokenProgramFromMint(connection, mint) {
+  const accountInfo = await connection.getAccountInfo(mint);
+  if (!accountInfo) {
+    throw new Error(`Mint account ${mint.toBase58()} not found`);
+  }
+  
+  if (accountInfo.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+    return TOKEN_2022_PROGRAM_ID;
+  } else if (accountInfo.owner.equals(TOKEN_PROGRAM_ID)) {
+    return TOKEN_PROGRAM_ID;
+  } else {
+    throw new Error(`Unknown token program: ${accountInfo.owner.toBase58()}`);
+  }
+}
 
 export function nowInSeconds() {
   return Math.floor(Date.now() / 1000);
